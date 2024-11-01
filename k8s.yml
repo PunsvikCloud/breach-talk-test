@@ -1,0 +1,68 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: breach-test
+  name: breach-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: breach-test
+  template:
+    metadata:
+      labels:
+        app: breach-test
+        version: IMAGE_LABEL
+    spec:
+      containers:
+        - name: breach-test
+          image: ghcr.io/punsvikcloud/breach-test:IMAGE_LABEL
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8080
+          imagePullSecrets:
+            - name: regcred
+          env:
+            - name: ConnectionStrings__MyDB
+              value: "...TODO..."
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: breach-test
+  name: breach-test
+spec:
+  selector:
+    app: breach-test
+  ports:
+    - port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: breach-test
+  name: breach-test
+  labels:
+    name: breach-test
+  annotations:
+    cert-manager.io/cluster-issuer: lets-encrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - breach-test.punsvik.net
+      secretName: tls-secret
+  rules:
+    - host: breach-test.punsvik.net
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: breach-test
+                port:
+                  number: 8080
